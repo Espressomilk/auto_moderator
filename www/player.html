@@ -72,7 +72,7 @@
 
 <body>
     <script type="text/javascript">
-      var socket = io.connect();  
+      var socket = io.connect('http://localhost:8081');  
       console.log("hello");
       var identity = null; 
       socket.on('message', function (data) {    
