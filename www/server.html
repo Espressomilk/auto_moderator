@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Werewolf Server</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+    body {
+    background-color:grey;
+    }
+    html,body{
+    height:100%;
+    margin:0px auto;
+    }
+    #all{
+    margin:0px auto;
+    width:800px;
+    height:100%;
+    text-align: center;
+    background-color:#000033;
+    }
+    .button.red{
+    border:1px solid #b42323;
+    box-shadow: 0 1px 2px #e99494 inset,0 -1px 0 #954b4b inset,0 -2px 3px #e99494 inset;
+    background: -webkit-linear-gradient(top,#d53939,#b92929);
+    background: -moz-linear-gradient(top,#d53939,#b92929);
+    background: linear-gradient(top,#d53939,#b92929);
+    height:80px;
+    width:80px;
+    font-size:25px;
+    }
+    .tabweb {
+    margin:0px auto;
+    width:300;
+    }
+    /* entire container, keeps perspective */
+    .flip-container {
+    perspective: 1000px;
+    margin:0px auto;
+    }
+    .flip-container.hover .flipper {
+    transform: rotateY(180deg);
+    }
+    .flip-container,
+    .front,
+    .back {
+    width: 700px;
+    height: 400px;
+    }
+    .flipper {
+    transition: 0.6s;
+    transform-style: preserve-3d;
+    position: relative;
+    }
+    .front,
+    .back {
+    backface-visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    }
+    .front {
+    z-index: 2;
+    transform: rotateY(0deg);
+    }
+    .back {
+    transform: rotateY(180deg);
+    }
+    .vertical.flip-container {
+    position: relative;
+    }
+    .vertical .back {
+    transform: rotateX(180deg);
+    }
+    .vertical.flip-container .flipper {
+    transform-origin: 100% 213.5px; /* half of height */
+    }
+    .vertical.flip-container.hover .flipper {
+    transform: rotateX(-180deg);
+    }
+    .checkboxFour {
+    width: 40px;
+    height: 40px;
+    background: #ddd;
+    margin: 20px 77px;
+    
+    border-radius: 100%;
+    position: relative;
+    -webkit-box-shadow: 0px 1px 3px rgba(0,0,0,0.5);
+    -moz-box-shadow: 0px 1px 3px rgba(0,0,0,0.5);
+    box-shadow: 0px 1px 3px rgba(0,0,0,0.5);
+    }
+    .checkboxFour label {
+    display: block;
+    width: 30px;
+    height: 30px;
+    border-radius: 100px;
+    
+    -webkit-transition: all .5s ease;
+    -moz-transition: all .5s ease;
+    -o-transition: all .5s ease;
+    -ms-transition: all .5s ease;
+    transition: all .5s ease;
+    cursor: pointer;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 1;
+    
+    background: #333;
+    
+    -webkit-box-shadow:inset 0px 1px 3px rgba(0,0,0,0.5);
+    -moz-box-shadow:inset 0px 1px 3px rgba(0,0,0,0.5);
+    box-shadow:inset 0px 1px 3px rgba(0,0,0,0.5);
+    }
+    .checkboxFour input[type=checkbox]:checked + label {
+    background: #26ca28;
+    }
+    </style>
+    <style type="text/css">
+    .form-style-6{
+    font: 95% Arial, Helvetica, sans-serif;
+    max-width: 600px;
+    margin: 10px auto;
+    padding: 16px;
+    background: #BEBEBE;
+    }
+    .form-style-6 h1{
+    background: #6C6C6C;
+    padding: 20px 0;
+    font-size: 140%;
+    font-weight: 300;
+    text-align: center;
+    color: #fff;
+    margin: -16px -16px 16px -16px;
+    }
+    .form-style-6 input[type="text"],
+    .form-style-6 input[type="date"],
+    .form-style-6 input[type="datetime"],
+    .form-style-6 input[type="email"],
+    .form-style-6 input[type="number"],
+    .form-style-6 input[type="search"],
+    .form-style-6 input[type="time"],
+    .form-style-6 input[type="url"],
+    .form-style-6 textarea,
+    .form-style-6 select
+    {
+    -webkit-transition: all 0.30s ease-in-out;
+    -moz-transition: all 0.30s ease-in-out;
+    -ms-transition: all 0.30s ease-in-out;
+    -o-transition: all 0.30s ease-in-out;
+    outline: none;
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    width: 100%;
+    background: #fff;
+    margin-bottom: 4%;
+    border: 1px solid #ccc;
+    padding: 3%;
+    color: #555;
+    font: 95% Arial, Helvetica, sans-serif;
+    }
+    .form-style-6 input[type="text"]:focus,
+    .form-style-6 input[type="date"]:focus,
+    .form-style-6 input[type="datetime"]:focus,
+    .form-style-6 input[type="email"]:focus,
+    .form-style-6 input[type="number"]:focus,
+    .form-style-6 input[type="search"]:focus,
+    .form-style-6 input[type="time"]:focus,
+    .form-style-6 input[type="url"]:focus,
+    .form-style-6 textarea:focus,
+    .form-style-6 select:focus
+    {
+    box-shadow: 0 0 5px #43D1AF;
+    padding: 3%;
+    border: 1px solid #43D1AF;
+    }
+    .form-style-6 input[type="submit"],
+    .form-style-6 input[type="button"]{
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    width: 100%;
+    padding: 3%;
+    background: #43D1AF;
+    border-bottom: 2px solid #30C29E;
+    border-top-style: none;
+    border-right-style: none;
+    border-left-style: none;
+    color: #fff;
+    }
+    .form-style-6 input[type="submit"]:hover,
+    .form-style-6 input[type="button"]:hover{
+    background: #2EBC99;
+    }
+    </style>
+  </head>
+  <body>
+    <script type="text/javascript">
+    function sleep(numberMillis) {
+    var now = new Date();
+    var exitTime = now.getTime() + numberMillis;
+    while (true) {
+    now = new Date();
+    if (now.getTime() > exitTime)
+    return;
+    }
+    }
+    </script>
+    <script type="text/javascript">
+    var socket = io.connect();
+    var autherized = 0;
+    var audio_occupied = 0;
+    var notice;
+    var info;
+    var back_label;
+    if(autherized == 0) {
+      socket.on("connected", function() {
+      notice = document.getElementById("notice");
+      info = document.getElementById("info_disp");
+      info.innerHTML = "Do you accept to be the server?";
+      displayChoise();
+      });
+    }
+    socket.once("autherized", function() {
+    autherized = 1;
+    var population = document.getElementById("population_input").value;
+    var werewolf_number = document.getElementById("werewolf_input").value;
+    if(population == "") {
+      population = 12;
+    }
+    if(werewolf_number == "") {
+      werewolf_number = 4;
+    }
+    var box = [];
+    box.push(document.getElementById("checkboxwitch").childNodes[1].checked);
+    box.push(document.getElementById("checkboxseer").childNodes[1].checked);
+    box.push(document.getElementById("checkboxguardian").childNodes[1].checked);
+    box.push(document.getElementById("checkboxhunter").childNodes[1].checked);
+    console.log(box);
+    console.log(population);
+    console.log(werewolf_number);
+    socket.emit("gamesettings", {message: [population, werewolf_number, box]});
+    change();
+    back_label = document.getElementById("back-identity");
+    });
+    if(true) {
+    socket.on("identities", function(data) {
+    console.log(data.message);
+    back_label.innerHTML = "<p>" +  data.message + "</p>"
+    });
+    socket.on("NightComeAudio", function() {
+    var audio = document.getElementById("NightComeAudio");
+    var audio2 = document.getElementById("WerewolfOEAudio");
+    // while(audio_occupied){}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    sleep(3000);
+    audio2.play();
+    }
+    });
+    // socket.on("WerewolfOEAudio", function() {
+    //   var audio = document.getElementById("WerewolfOEAudio");
+    //   // while(audio_occupied) {}
+    //   audio_occupied = 1;
+    //   audio.play();
+    //   audio.onended = function() {
+    //     // socket.emit("AudioEnded");
+    //   }
+    // });
+    socket.on("WerewolfCEAudio", function() {
+    var audio = document.getElementById("WerewolfCEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("WitchOEAudio", function() {
+    var audio = document.getElementById("WitchOEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("WitchCEAudio", function() {
+    var audio = document.getElementById("WitchCEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("SeerOEAudio", function() {
+    var audio = document.getElementById("SeerOEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("SeerCEAudio", function() {
+    var audio = document.getElementById("SeerCEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("GuardianOEAudio", function() {
+    var audio = document.getElementById("GuardianOEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("GuardianCEAudio", function() {
+    var audio = document.getElementById("GuardianCEAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("RunForSherifAudio", function() {
+    var audio = document.getElementById("RunForSherifAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("DayComeAudio", function() {
+    var audio = document.getElementById("DayComeAudio");
+    // while(audio_occupied) {}
+    audio_occupied = 1;
+    audio.play();
+    audio.onended = function() {
+    // socket.emit("AudioEnded");
+    }
+    });
+    socket.on("SherifTakingOfficeAudio", function(data) {
+    var police = data.police;
+    console.log("SerifTakingOfficeAudio: " + police);
+    if(police == -1) {
+    // nobody took the office
+    var audio = document.getElementById("NobodyTakingOfficeAudio");
+    audio.play();
+    } else {
+    // while(audio_occupied) {}
+    var audio = document.getElementById("SherifTakingOfficeAudio");
+    audio_number = document.getElementById("number" + (police + 1));
+    audio_occupied = 1;
+    audio_number.play();
+    setTimeout(function() {
+    audio.play();
+    }, 2000);
+    audio.onended = function() {
+    audio_occupied = 0;
+    }
+    }
+    });
+    socket.on("DeathAnnouncementAudio", function(data) {
+    var death_list = data.message
+    var audio_list = []
+    if(death_list.length == 0) {
+    var audio = document.getElementById("NoDeathAudio");
+    audio.play();
+    } else {
+    for(var i = 0; i < death_list.length; ++i) {
+    var tmp = document.getElementById(("number" + (death_list[i] + 1)));
+    console.log(tmp);
+    setTimeout(function() {
+    tmp.play();
+    }, i * 2000);
+    }
+    var audio = document.getElementById("DeathAnnouncementAudio");
+    // while(audio_occupied) {}
+    
+    audio_occupied = 1;
+    setTimeout(function() {
+    audio.play();
+    }, death_list.length * 2000);
+    audio.onended = function() {
+    audio_occupied = 0;
+    }
+    }
+    });
+    }
+    </script>
+    <script type="text/javascript">
+    function onClickChoise(o) {
+    var choise = o.value;
+    var tbody = o.parentNode.parentNode.parentNode;
+    tbody.innerHTML = "";
+    info.innerHTML = "";
+    socket.emit("validation", {choise: choise});
+    }
+    function displayChoise() {
+    var _tr = document.createElement("tr");
+    var td1 = document.createElement("td");
+    var td2 = document.createElement("td");
+    td1.innerHTML = '<input type="button" class="button red" value="YES" onclick="onClickChoise(this);" />';
+    td2.innerHTML = '<input type="button" class="button red" value="NO" onclick="onClickChoise(this);" />';
+    _tr.appendChild(td1);
+    _tr.appendChild(td2);
+    var otbale = document.getElementById("tabweb");
+    otbale.getElementsByTagName("tbody")[0].appendChild(_tr);
+    }
+    </script>
+    <audio id="NightComeAudio">
+      <source src="audio/NightComeAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="WerewolfOEAudio">
+      <source src="audio/WerewolfOEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="WerewolfCEAudio">
+      <source src="audio/WerewolfCEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="WitchOEAudio">
+      <source src="audio/WitchOEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="WitchCEAudio">
+      <source src="audio/WitchCEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="SeerOEAudio">
+      <source src="audio/SeerOEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="SeerCEAudio">
+      <source src="audio/SeerCEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="GuardianOEAudio">
+      <source src="audio/GuardianOEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="GuardianCEAudio">
+      <source src="audio/GuardianCEAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="RunForSherifAudio">
+      <source src="audio/RunForSherifAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="SherifTakingOfficeAudio">
+      <source src="audio/SherifTakingOfficeAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="NobodyTakingOfficeAudio">
+      <source src="audio/NobodyTakingOfficeAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="DayComeAudio">
+      <source src="audio/DayComeAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="NoDeathAudio">
+      <source src="audio/NoDeathAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="DeathAnnouncementAudio">
+      <source src="audio/DeathAnnouncementAudio.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number1">
+      <source src="audio/number1.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number2">
+      <source src="audio/number2.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number3">
+      <source src="audio/number3.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number4">
+      <source src="audio/number4.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number5">
+      <source src="audio/number5.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number6">
+      <source src="audio/number6.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number7">
+      <source src="audio/number7.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number8">
+      <source src="audio/number8.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number9">
+      <source src="audio/number9.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number10">
+      <source src="audio/number10.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number11">
+      <source src="audio/number11.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number12">
+      <source src="audio/number12.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number13">
+      <source src="audio/number13.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number14">
+      <source src="audio/number14.mp3" type="audio/mp3">
+    </audio>
+    <audio id="number15">
+      <source src="audio/number15.mp3" type="audio/mp3">
+    </audio>
+    <div id="all">
+      <img src="logo/coollogo_com-235551744.png">
+      <h id="identity_disp"></h>
+      <p></p>
+      <div id="change_area">
+      <div class="form-style-6">
+        <h1>Game Settings</h1>
+        <form>
+          <input type="text" name="field1" placeholder="Total number of players (default:12)" id="population_input" />
+          <input type="text" name="field2" placeholder="Number of werewolf (default:4)" id="werewolf_input" />
+        </form>
+      </div>
+      <table>
+        <tr>
+          <td>
+            <p style="color:white;font-size:15px;"> Witch </p>
+            <div class="checkboxFour" id="checkboxwitch">
+              <input type="checkbox" value="1" id="checkboxFourInput1" name="" />
+              <label for="checkboxFourInput1"></label>
+            </div>
+          </td>
+          <td>
+            <p style="color:white;font-size:15px;"> Seer </p>
+            <div class="checkboxFour" id="checkboxseer">
+              <input type="checkbox" value="1" id="checkboxFourInput2" name="" />
+              <label for="checkboxFourInput2"></label>
+            </div>
+          </td>
+          <td>
+            <p style="color:white;font-size:15px;"> Guardian </p>
+            <div class="checkboxFour" id="checkboxguardian">
+              <input type="checkbox" value="1" id="checkboxFourInput3" name="" />
+              <label for="checkboxFourInput3"></label>
+            </div>
+          </td>
+          <td>
+            <p style="color:white;font-size:15px;"> Hunter </p>
+            <div class="checkboxFour" id="checkboxhunter">
+              <input type="checkbox" value="1" id="checkboxFourInput4" name="" />
+              <label for="checkboxFourInput4"></label>
+            </div>
+          </td>
+        </tr>
+      </table>
+      </div>
+      <!-- <div class="flip-container vertical" id="flip-toggle" onclick="this.classList.toggle('hover');">
+        <div class="flipper">
+          <div class="front" style="background-color: black; color:white; font-size:25px; top:50%; position: relative;">
+            Things under this card should only be known by the Moderator.
+          </div>
+          <div class="back" id="back-identity" style="background-color: black; color:white; font-size:25px;">
+            
+          </div>
+        </div>
+      </div> -->
+      
+      <div id="notice" style="color:white;font-size:25px;"></div>
+      <p id="info_disp" style="color:white;font-size:25px;"></p>
+      <table id = "tabweb" class="tabweb" border="0">
+      <tbody></tbody>
+    </table>
+  </div>
+</body>
+<script type="text/javascript">
+function change() {
+  var change_area = document.getElementById("change_area");
+  change_area.innerHTML = "<div class=\"flip-container vertical\" id=\"flip-toggle\" onclick=\"this.classList.toggle('hover');\">\
+        <div class=\"flipper\">\
+          <div class=\"front\" style=\"background-color: black; color:white; font-size:25px; top:50%; position: relative;\">\
+            Things under this card should only be known by the Moderator.\
+          </div>\
+          <div class=\"back\" id=\"back-identity\" style=\"background-color: black; color:white; font-size:25px;\">\
+            \
+          </div>\
+        </div>\
+      </div>"
+}
+
+</script>
+</html>

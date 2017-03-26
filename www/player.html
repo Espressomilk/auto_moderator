@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>socket</title>
+    <script src="/socket.io/socket.io.js"></script>     
+    <style>
+      body {
+        background-color:grey;
+      }
+      html,body{
+        height:100%;
+        margin:0px auto;
+      }
+      #all{
+        margin:0px auto;
+        width:800px;
+        height:100%;
+        text-align: center;
+        background-color:#000033;
+      }
+      .button.red{
+        border:1px solid #b42323;
+        box-shadow: 0 1px 2px #e99494 inset,0 -1px 0 #954b4b inset,0 -2px 3px #e99494 inset;
+        background: -webkit-linear-gradient(top,#d53939,#b92929);
+        background: -moz-linear-gradient(top,#d53939,#b92929);
+        background: linear-gradient(top,#d53939,#b92929);
+        height:80px;
+        width:80px;
+        font-size:25px;
+      }
+      .tabweb {
+        margin:0px auto;
+        width:300;
+      }
+      /* entire container, keeps perspective */
+      .flip-container {
+        perspective: 1000px;
+        margin:0px auto;
+      }
+
+      .flip-container.hover .flipper {
+        transform: rotateY(180deg);
+      }
+      .flip-container,
+      .front,
+      .back {
+        width: 300px;
+        height: 300px;
+      }
+      .flipper {
+        transition: 0.6s;
+        transform-style: preserve-3d;
+        position: relative;
+      }
+      .front,
+      .back {
+        backface-visibility: hidden;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .front {
+        z-index: 2;
+        transform: rotateY(0deg);
+      }
+      .back {
+        transform: rotateY(180deg);
+      }
+    </style>
+</head>
+
+<body>
+    <script type="text/javascript">
+      var socket = io.connect();  
+      console.log("hello");
+      var identity = null; 
+      socket.on('message', function (data) {    
+        console.log(data.message);
+        if(identity == null)
+          identity = data.message;
+        renderPic();
+        // socket.emit('other event', { my: 'data' });
+        var p = document.getElementById("identity_disp");
+        var info = document.getElementById("info_disp");
+        console.log(info);
+        var notice = document.getElementById("notice");
+        // p.innerHTML = "Your identity is " + identity;
+        socket.on('close', function() {
+          info.innerHTML = "You're dead.";
+        });
+        if(identity == "werewolf") {
+          socket.on('command', function(data) {
+            // console.log(data.command);
+            info.innerHTML = "Choose your target, werewolf:"
+            displayList("werewolf", data.command);
+          });
+        } else if(identity == "witch") {
+          socket.on("cure", function(data) {
+            if(data.message == "YOU") {
+              var p1 = document.createElement("p");
+              p1.innerHTML = "Tonight you're killed. But you cannot save yourself."; 
+              notice.appendChild(p1);
+              socket.emit("choise", {choise: "NO"});
+            } else {
+              info.innerHTML = "Tonight " + (data.message + 1) + " has been killed. Would you like to save him?";
+              displayChoise();
+            }
+          });
+          socket.on("poison", function(data) {
+            info.innerHTML = "Would would you like to poison?";
+            displayList("witch", data.message);
+          });
+        } else if(identity == "seer") {
+          socket.on("command", function(data) {
+            info.innerHTML = "Choose a person that you want to check his identity:";
+            displayList("seer", data.message);
+          });
+          socket.on("result", function(data) {
+            if(data.message == "werewolf")
+              info.innerHTML = "His identity is EVIL";
+            else
+              info.innerHTML = "His identity is GOOD";
+          });
+        } else if(identity == "guardian") {
+          socket.on("command", function(data) {
+            displayList("guardian", data.message);
+          });
+        } else if(identity == "hunter") {
+          socket.on("command", function(data) {
+            displayList("hunter", data.message);
+          });
+        }
+
+        socket.on("vote", function(data) {
+          info.innerHTML = 'Please vote for the police. If you are on the election, you should not vote. Instead, you should choose "None".';
+          displayList("vote", data.message);
+        });
+        socket.on("announce", function(data) {
+          var p1 = document.createElement("p");
+          if(data.message == -1) {
+            p1.innerHTML = "Last night, nobody is dead."; 
+          } else
+            p1.innerHTML = "Last night, " + data.message + " is/are killed."; 
+          notice.appendChild(p1);
+        });
+        socket.on("speach", function() {
+          var tmp_list = ["FINISHED"]
+          displayList("speach", tmp_list);
+        });
+        socket.on("lynchlist", function(data) {
+          info.innerHTML = 'Please vote for the person you want to lynch.';
+          displayList("vote", data.message);
+        });
+        socket.on("sheriflynch", function(data) {
+          info.innerHTML = "You're the sherif. You have 0.5 extra point. Who do you want to vote?";
+          displayList("vote", data.message);
+        });
+        socket.on("transferBadge", function(data) {
+          info.innerHTML = "You're dead. Please transfer the badge or destroy it.";
+          displayList("vote", data.message);
+        });
+      });
+    </script>
+    <script type="text/javascript">
+      function onClickBtn(o) {
+        var target = o.value
+        if(target == "None") target = 0; 
+        if(target == "FINISHED") {
+          socket.emit("finished");
+          return;
+        }
+        // alert("Your target is " + (target - 1));
+        var tbody = o.parentNode.parentNode.parentNode;
+        // console.log(tbody);
+        tbody.innerHTML = "";
+        if(identity == "werewolf")
+          socket.emit("kill", {target: (target - 1)});
+        if(identity == "witch")
+          socket.emit("poison_target", {target: (target - 1)});
+        if(identity == "seer")
+          socket.emit("see", {target: (target - 1)});
+        if(identity == "guardian")
+          socket.emit("guard", {target: (target - 1)});
+        if(identity == "hunter")
+          socket.emit("gunfire", {target: (target - 1)});
+      }
+      function onClickVote(o) {
+        var target = o.value;
+        if(target == "None") target = 0;
+        var tbody = o.parentNode.parentNode.parentNode;
+        tbody.innerHTML = "";
+        socket.emit("vote_res", {target: target - 1});
+      }
+      function onClickChoise(o) {
+        var choise = o.value;
+        var tbody = o.parentNode.parentNode.parentNode;
+        tbody.innerHTML = "";
+        if(identity == "witch") {
+          socket.emit("choise", {choise: choise});
+        }
+      }
+
+      function displayChoise() {
+        var _tr = document.createElement("tr");
+        var td1 = document.createElement("td");
+        var td2 = document.createElement("td");
+        td1.innerHTML = '<input type="button" class="button red" value="YES" onclick="onClickChoise(this);" />';
+        td2.innerHTML = '<input type="button" class="button red" value="NO" onclick="onClickChoise(this);" />';
+        _tr.appendChild(td1);
+        _tr.appendChild(td2);
+
+        var otbale = document.getElementById("tabweb");
+        otbale.getElementsByTagName("tbody")[0].appendChild(_tr);
+      }
+
+      function displayList(information, liveList) {
+        console.log("current livelist length: " + liveList.length);
+        for(var i = 0; i < liveList.length + 1; ++i) {
+          var o = document.getElementById("tabweb").getElementsByTagName("td");  
+          var index = o.length;
+          var _tr;
+          if(index % 4 == 0)
+            _tr = document.createElement("tr");
+          else {
+            var tmp = document.getElementsByTagName("tr");
+            _tr = tmp[tmp.length - 1];
+          }
+          var td1=document.createElement("td");
+          if(information == "vote") {
+            if(i != liveList.length)
+              td1.innerHTML = '<input type="button" class="button red" value="'+(liveList[index] + 1)+'" onclick="onClickVote(this);" />';  
+            else
+              td1.innerHTML = '<input type="button" class="button red" value="None" onclick="onClickVote(this);" />';
+          } else if(information == "speach") {
+            td1.innerHTML = '<input type="buttun" class="button red" value="FINISHED" onclick="onClickBtn(this);" />'
+          } else {
+            if(i != liveList.length)
+              td1.innerHTML = '<input type="button" class="button red" value="'+(liveList[index] + 1)+'" onclick="onClickBtn(this);" />';  
+            else
+              td1.innerHTML = '<input type="button" class="button red" value="None" onclick="onClickBtn(this);" />';
+          }
+          _tr.appendChild(td1);
+            
+          var otbale = document.getElementById("tabweb");  
+          otbale.getElementsByTagName("tbody")[0].appendChild(_tr); 
+        }
+
+      }
+    </script>
+    <div id="all">
+    <img src="logo/coollogo_com-235551744.png">
+    <h id="identity_disp"></h>
+    <p></p>
+    <div class="flip-container" id="flip-toggle" onclick="this.classList.toggle('hover');">
+      <div class="flipper">
+        <div class="front">
+          <div class="front" style="background: url(static/back.jpg) 0 0 no-repeat;background-size: 100%;"></div>
+        </div>
+        <div class="back" id="back-identity">
+          <!-- <div class="front" style="background: url(witch.jpg) 0 0 no-repeat;"></div> -->
+        </div>
+      </div>
+    </div>
+    <div id="notice" style="color:white;font-size:25px;"></div>
+    <p id="info_disp" style="color:white;font-size:25px;"></p>
+    <table id = "tabweb" class="tabweb" border="0">
+    <tbody></tbody>
+    </table>
+    </div>
+    <script type="text/javascript">
+      function renderPic() {
+        var back_label = document.getElementById("back-identity");
+        back_label.innerHTML = "<div class='front' style='background: url(static/" + identity + ".jpg) 0 0 no-repeat; background-size: 100%;'></div>"
+      }
+    </script>
+</body>
+</html>

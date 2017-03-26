@@ -1,0 +1,12 @@
+{
+  "name": "Werewolf-alpha",
+  "version": "0.0.0",
+  "description": "Werewolf game application",
+  "dependencies": {
+    "express": "latest",
+    "jade": "latest",
+    "socket.io": "latest",
+    "stately.js": "^1.3.0"
+  },
+  "author": "zfshi"
+}
