@@ -8,6 +8,8 @@ server.listen(port);
 // var Stately = require('stately.js');
 console.log("Listening on port " + port);
 
+// var io = require('socket.io')(8081);
+
 
 var target_population = 4;
 var population = 0;
