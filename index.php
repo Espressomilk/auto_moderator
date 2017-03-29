@@ -3,7 +3,7 @@
 		echo "Starting auto moderator...<br>";
 		exec("/usr/bin/node /home/pi/auto_moderator/server.js > /tmp/auto_moderator.log 2>&1 &", $output);
 		exec("ps -A | grep node", $output);
-		$pid = explode(" ", $output[0])[0];
+		$pid = trim(explode("?", $output[0])[0]);
 		if($pid == '') {
 			echo "Startup failed.Please retry...<br>";
 		} else {
@@ -13,7 +13,7 @@
 	if($_POST['stop']) {
 		echo "Stopping auto moderator...<br>";
 		exec("ps -A | grep node", $output);
-		$pid = explode(" ", $output[0])[0];
+		$pid = trim(explode("?", $output[0])[0]);
 		exec("kill " . $pid, $output, $state);
 		if($state == 0) {
 			echo "Terminated successfully.<br>";
