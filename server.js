@@ -10,6 +10,7 @@ console.log("Listening on port " + port);
 
 // var io = require('socket.io')(8081);
 
+var gameID = Math.ceil(Math.random() * 100);
 
 var target_population = 4;
 var population = 0;
@@ -125,75 +126,133 @@ function sleep(numberMillis) {
 // THIS PART IS SIMILLAR TO A FSM
 // *******************************
 
+STATE = "WELCOME"
+
 function Welcome() {
+	STATE = "WELCOME"
 	console.log("=====Welcome=====");
 	console.log(identities);
 	// wait until the population reaches the target number, then game start
 	io.on('connection', function (socket) {
 		if(server == null) {
 			console.log("One server might be online...");
-			server = socket;
-			server.emit("connected");
-			server.on("validation", function(data) {
+			
+			socket.emit("connected");
+			socket.on("validation", function(data) {
 				if(data.choise == "YES") {
 					server_validated = 1;
+					server = socket;
 					console.log("server online");
 					server.emit("autherized");
 				} else {
 					server_validated = 0;
 				}
-			});
-			server.on("gamesettings", function(data) {
-				target_population = data.message[0];
-				for(var i = 0; i < data.message[1]; ++i) {
-					identities.push("werewolf");
-				}
-				var tmp_cnt = 0;
-				for(var i = 0; i < data.message[2].length; ++i) {
-					if(data.message[2][i]) {
-						tmp_cnt += 1;
-						switch(i) {
-							case 0:
-								identities.push("witch");
-							break;
-							case 1:
-								identities.push("seer");
-							break;
-							case 2:
-								identities.push("guardian");
-							break;
-							case 3:
-								identities.push("hunter");
-							break;
+				server.on("gamesettings", function(data) {
+					target_population = data.message[0];
+					for(var i = 0; i < data.message[1]; ++i) {
+						identities.push("werewolf");
+					}
+					var tmp_cnt = 0;
+					for(var i = 0; i < data.message[2].length; ++i) {
+						if(data.message[2][i]) {
+							tmp_cnt += 1;
+							switch(i) {
+								case 0:
+									identities.push("witch");
+								break;
+								case 1:
+									identities.push("seer");
+								break;
+								case 2:
+									identities.push("guardian");
+								break;
+								case 3:
+									identities.push("hunter");
+								break;
+							}
 						}
 					}
-				}
-				for(var i = 0; i < target_population - data.message[1] - tmp_cnt; ++i) {
-					identities.push("villager");
-				}
-				identities = shuffle(identities);
-				console.log(identities);
+					for(var i = 0; i < target_population - data.message[1] - tmp_cnt; ++i) {
+						identities.push("villager");
+					}
+					identities = shuffle(identities);
+					console.log(identities);
+				});
 			});
 		} else if(server_validated == 1) {
-			console.log('One player connects to the server...');
-			sockets.push(socket);
-			population += 1;
-			socket.emit("message", {message: identities[population - 1]});
-			if(identity_dict.hasOwnProperty(identities[population - 1])) {
-				identity_dict[identities[population - 1]].push(population - 1);
-			} else {
-				var tmp_array = [population - 1];
-				identity_dict[identities[population - 1]] = tmp_array;
-			}
-			if(population == target_population) {
-				server.emit("identities", {message: identities});
-				return NightWolf();
-			}
+			// console.log('One player connects to the server...');
+			socket.emit("requestIdentity");
+			var tmpID = null;
+			var tmpIdentity = null;
+			var tmpGameID = null;
+			socket.on("identityResponse", function(data) {
+				tmpID = data.ID;
+				tmpIdentity = data.identity;
+				tmpGameID = data.gameID;
+				if(tmpGameID == gameID || tmpGameID == null) { 
+					if(tmpID == null && tmpIdentity == null) { // This is a new connection
+						sockets.push(socket);
+						population += 1;
+						socket.emit("message", {ID: population - 1, message: identities[population - 1], gameID: gameID});
+						if(identity_dict.hasOwnProperty(identities[population - 1])) {
+							identity_dict[identities[population - 1]].push(population - 1);
+						} else {
+							var tmp_array = [population - 1];
+							identity_dict[identities[population - 1]] = tmp_array;
+						}
+						if(population == target_population) {
+							server.emit("identities", {message: identities});
+							return NightWolf();
+						}
+					} else { // This is a reconnection
+						reconnectionRecover(tmpID, tmpIdentity);
+					}
+				} // else ignore connection, cause the gameID didn't match
+			});
 		}
 	});
 }
 
+function reconnectionRecover(ID, identity) {
+	if(identity == "werewolf" && STATE == "NIGHTWOLF") {
+		if(contains(liveList, ID) == false) return;
+		sockets[ID].emit("command", {command: liveList});
+	} else if(identity == "witch" && STATE == "NightWitch") {
+		if(contains(liveList, ID) == false) return;
+		if(witch_cure) {
+			if(wolf_target == ID && day != 1) {
+				sockets[ID].emit("cure", {message: "YOU"});
+			} else {
+				sockets[ID].emit("cure", {message: wolf_target});
+			}
+		} else if(witch_poison) {
+			sockets[ID].emit('poison');
+		}
+	} else if(identity == "seer" && STATE == "NightSeer") {
+		if(contains(liveList, ID) == false) return;
+		sockets[ID].emit("command", {message: liveList});
+	} else if(identity == "guardian" && STATE == "NightGuardian") {
+		if(constains(liveList, ID) == false) return;
+		sockets[ID].emit("command", {message: liveList});
+	} else if(STATE == "DAWNELECTION") {
+		if(constains(liveList, ID) == false) return;
+		sockets[ID].emit("vote", {message: liveList});
+	} else if(identity == "hunter" && STATE == "DAWNSETTLEMENT") {
+		if(contains(death_list, ID) == false) return; // if death
+		sockets[ID].emit("command", {message: liveList});
+	} else if(STATE == "BADGETRANSFER" && ID == police) {
+		if(contains(death_list, ID) == false) return; // if death
+		sockets[ID].emit("transferBadge", {message: liveList});
+	} else if(STATE == "SHERIFLYNCH" && ID == police) {
+		sockets[ID].emit("sheriflynch", {message: liveList});
+	} else if(STATE == "DAYLYNCH") {
+		if(contains(liveList, ID) == false) return;
+		sockets[ID].emit("lynchlist", {message: liveList});
+	}
+}
+
 function NightWolf() {
+	STATE = "NIGHTWOLF"
 	console.log("=====Werewolf=====");
 	day += 1;
 	console.log(identity_dict);
@@ -202,14 +261,18 @@ function NightWolf() {
 	wolf_target_list = [];
 	var self = this;
 	var live_flag = 0;
+	var useless = 0;
 	for(var i = 0, len = identity_dict['werewolf'].length; i < len; ++i) {
-		if(contains(liveList, identity_dict['werewolf'][i]) == false) continue;
+		if(contains(liveList, identity_dict['werewolf'][i]) == false) {
+			useless += 1;
+			continue;
+		} 
 		live_flag = 1;
 		var sock = sockets[identity_dict['werewolf'][i]];
 		sock.emit("command", {command: liveList});
 		sock.once("kill", function (data) {
 			wolf_target_list.push(parseInt(data.target));
-			if(wolf_target_list.length == identity_dict['werewolf'].length) {
+			if(wolf_target_list.length + useless == identity_dict['werewolf'].length) {
 				wolf_target = mode(wolf_target_list)[0];
 				return NightWitch(); 
 			}
@@ -235,6 +298,7 @@ function NightWitch() {
 	sleep(3000);
 	server.emit("WitchOEAudio");
 	var live_flag = 0;
+	STATE = "NIGHTWITCH"
 	for(var i = 0, len = identity_dict['witch'].length; i < len; ++i) {
 		if(contains(liveList, identity_dict['witch'][i]) == false) continue;
 		live_flag = 1;
@@ -298,6 +362,7 @@ function NightGuardian() {
 	server.emit("GuardianOEAudio");
 	server.emit()
 	var live_flag = 0;
+	STATE = "NIGHTGUARDIAN"
 	for(var i = 0, len = identity_dict['guardian'].length; i < len; ++i) {
 		if(contains(liveList, identity_dict['guardian'][i]) == false) continue;
 		live_flag = 1;
@@ -321,6 +386,7 @@ function NightGuardian() {
 }
 
 function NightSeer() {
+	STATE = "NIGHTSEER"
 	console.log("=====Seer=====");
 	console.log("witch_choice:" + witch_choice);
 	console.log("witch_cure:" + witch_cure);
@@ -375,6 +441,7 @@ function DawnElection(time) {
 	vote_list = [];
 	console.log("after empty, votelist: " + vote_list);
 	console.log(vote_list.length);
+	STATE = "DAWNELECTION"
 	for(var i = 0, len = liveList.length; i < len; ++i) {
 		var sock = sockets[liveList[i]];
 		sock.emit("vote", {message: liveList});
@@ -439,6 +506,7 @@ function DawnSettlement() {
 	setTimeout(function() {
 		server.emit("DeathAnnouncementAudio", {message: death_list});
 	}, 6000);
+	STATE = "DAWNSETTLEMENT"
 	for(var i = 0; i < liveList.length; ++i) {
 		if(death_list.length == 0) {
 			sockets[liveList[i]].emit("announce", {message: -1});
@@ -466,6 +534,7 @@ function DawnSettlement() {
 }
 
 function BadgeTransfer(time) {
+	STATE = "BADGETRANSFER"
 	console.log("=====BadgeTransfer=====");
 	if(contains(death_list, police)) {
 		sockets[police].emit("transferBadge", {message: liveList});
@@ -499,6 +568,7 @@ function DaySpeech() {
 }
 
 function SherifLynch() {
+	STATE = "SHERIFLYNCH"
 	console.log("=====SherifLynch=====");
 	if(police == -1) {
 		return DayLynch();
@@ -516,6 +586,7 @@ function DayLynch(time) {
 		console.log("this is a re-lynch...");
 	}
 	var lynch_list = [];
+	STATE = "DAYLYNCH"
 	var lynch_target = -1;
 	for(var i = 0, len = liveList.length; i < len; ++i) {
 		var sock = sockets[liveList[i]];

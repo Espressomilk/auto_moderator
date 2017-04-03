@@ -72,13 +72,21 @@
 
 <body>
     <script type="text/javascript">
+      var identity = null; 
+      var gameID = null;
+      var ID = null;
       var socket = io.connect('http://localhost:8010');  
       console.log("hello");
-      var identity = null; 
+      socket.on('requestIdentity', function() {
+        socket.emit("identityResponse", {gameID: gameID, identity: identity, ID: ID});
+      });
       socket.on('message', function (data) {    
         console.log(data.message);
-        if(identity == null)
+        if(identity == null) {
           identity = data.message;
+          gameID = data.gameID;
+          ID = data.ID;
+        }
         renderPic();
         // socket.emit('other event', { my: 'data' });
         var p = document.getElementById("identity_disp");
